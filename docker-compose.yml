@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  sentry-mcp:
+    build:
+      context: ./services/sentry_mcp
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./services/sentry_mcp:/app
+    env_file:
+      - ./services/sentry_mcp/.env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  github-mcp:
+    build:
+      context: ./services/github_mcp
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./services/github_mcp:/app
+    env_file:
+      - ./services/github_mcp/.env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  browserbase-mcp:
+    build:
+      context: ./services/browserbase_mcp
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./services/browserbase_mcp:/app
+    env_file:
+      - ./services/browserbase_mcp/.env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s 
