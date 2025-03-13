@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  sentry-mcp:
+    build:
+      context: ./servers/src/sentry
+    ports:
+      - "9000:8000"  # 別のポートを使用して既存のサービスと競合しないようにします
+    volumes:
+      - ./sentry/data:/data  # データ保存用のボリューム
+    environment:
+      - SENTRY_API_TOKEN=${SENTRY_API_TOKEN}
+      - SENTRY_ORG=${SENTRY_ORG}
+    command: ["--db-path", "/data/sentry.db"]  # Dockerfileのエントリーポイントに追加のコマンドを渡す
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s 
