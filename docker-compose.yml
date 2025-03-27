@@ -1,53 +1,64 @@
 version: '3.8'
 
 services:
-  sentry-mcp:
-    build:
-      context: ./services/sentry_mcp
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./services/sentry_mcp:/app
-    env_file:
-      - ./services/sentry_mcp/.env
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+#  sentry-mcp:
+#    build:
+#      context: ./services/sentry_mcp
+#    ports:
+#      - "8000:8000"
+#    volumes:
+#      - ./services/sentry_mcp:/app
+#    env_file:
+#      - ./services/sentry_mcp/.env
+#    restart: unless-stopped
+#    healthcheck:
+#      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+#      interval: 30s
+#      timeout: 10s
+#      retries: 3
+#      start_period: 10s
 
-  github-mcp:
+  github-mcp-1:
+    image: mcp/github
     build:
-      context: ./services/github_mcp
+      context: .
+      dockerfile: src/github/Dockerfile
     ports:
-      - "8001:8001"
-    volumes:
-      - ./services/github_mcp:/app
+      - "5002:5000"
     env_file:
-      - ./services/github_mcp/.env
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+      - .env
+    environment:
+      - PORT=5000
+    tty: true
+    stdin_open: true
 
-  browserbase-mcp:
+  github-mcp-2:
+    image: mcp/github
     build:
-      context: ./services/browserbase_mcp
+      context: .
+      dockerfile: src/github/Dockerfile
     ports:
-      - "8002:8002"
-    volumes:
-      - ./services/browserbase_mcp:/app
+      - "5003:5000"
     env_file:
-      - ./services/browserbase_mcp/.env
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8002/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s 
+      - .env
+    environment:
+      - PORT=5000
+    tty: true
+    stdin_open: true
+
+#  browserbase-mcp:
+#    build:
+#      context: ./services/browserbase_mcp
+#    ports:
+#      - "8002:8002"
+#    volumes:
+#      - ./services/browserbase_mcp:/app
+#    env_file:
+#      - ./services/browserbase_mcp/.env
+#    restart: unless-stopped
+#    healthcheck:
+#      test: ["CMD", "curl", "-f", "http://localhost:8002/"]
+#      interval: 30s
+#      timeout: 10s
+#      retries: 3
+#      start_period: 10s 

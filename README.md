@@ -1,188 +1,199 @@
-# MCPサーバープロジェクト
+# Dockerized GitHub MCP Server
 
-このプロジェクトは、Model Context Protocol (MCP) サーバーを複数のサービス（Sentry、GitHub、BrowserBase）に対して構築し、Docker で管理します。
+GitHubのAPIと連携し、リポジトリのファイル操作、リポジトリ管理、検索機能などを提供するModel Context Protocol（MCP）サーバーをDockerコンテナとして提供します。
 
-## 概要
+## 機能
 
-以下の MCP サーバーを FastAPI + Docker でセットアップしています：
+- **自動ブランチ作成**: ファイル作成/更新時やpush時に、存在しないブランチを自動的に作成
+- **包括的なエラーハンドリング**: 一般的な問題に対する明確なエラーメッセージを提供
+- **Gitヒストリー保持**: 操作は強制pushを使わず適切なGitヒストリーを維持
+- **バッチ操作**: 単一ファイルと複数ファイルの両方の操作をサポート
+- **高度な検索**: コード、イシュー/PR、ユーザーの検索をサポート
 
-- **Sentry MCP**
-  - エラー情報を取得し解析します。
-  - エンドポイント: `/mcp/sentry/errors`
-  - ポート: 8000
+## セットアップ
 
-- **GitHub MCP**
-  - GitHubのPRやIssueの情報を取得します。
-  - エンドポイント: `/mcp/github/list_prs`, `/mcp/github/list_issues`
-  - ポート: 8001
+### 1. GitHub Personal Access Tokenの準備
 
-- **BrowserBase MCP**
-  - ブラウザをリモートで操作し、Webページをスクレイピング・操作します。
-  - エンドポイント: `/mcp/browserbase/open_url`, `/mcp/browserbase/get_title`, `/mcp/browserbase/get_text`, `/mcp/browserbase/screenshot`
-  - ポート: 8002
+1. [GitHub Personal Access Token](https://docs.github.com/ja/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)を作成します
+   - GitHubの設定 > 開発者設定 > Personal access tokenに移動
+   - このトークンがアクセスできるリポジトリを選択（Public、All、または特定のリポジトリ）
+   - `repo`スコープ（「プライベートリポジトリの完全な制御」）を選択
+     - または、公開リポジトリのみを操作する場合は`public_repo`スコープのみを選択
+   - 生成されたトークンをコピー
 
-これらのMCPサーバーはそれぞれ独立したDockerコンテナで動作し、docker-composeを使用して一括管理します。
+2. `.env`ファイルにトークンを設定:
+   ```
+   GITHUB_PERSONAL_ACCESS_TOKEN=ghp_your_token_here
+   ```
 
-## プロジェクト構造
+### 2. Dockerによるビルドと起動
 
-```
-my-mcp-servers/
-│── services/
-│   ├── sentry_mcp/
-│   │   ├── main.py            # FastAPI MCP Server for Sentry integration
-│   │   ├── Dockerfile
-│   │   ├── requirements.txt
-│   │   ├── .env.template      # 環境変数テンプレート
-│   │   ├── .env               # 実際の環境変数（gitignore対象）
-│   ├── github_mcp/
-│   │   ├── main.py            # FastAPI MCP Server for GitHub integration
-│   │   ├── Dockerfile
-│   │   ├── requirements.txt
-│   │   ├── .env.template      # 環境変数テンプレート
-│   │   ├── .env               # 実際の環境変数（gitignore対象）
-│   ├── browserbase_mcp/
-│   │   ├── main.py            # FastAPI MCP Server for BrowserBase integration
-│   │   ├── Dockerfile
-│   │   ├── requirements.txt
-│   │   ├── .env.template      # 環境変数テンプレート
-│   │   ├── .env               # 実際の環境変数（gitignore対象）
-│── docker-compose.yml
-│── README.md
-```
+#### ビルド手順
 
-## セットアップ手順
-
-### 前提条件
-
-- Docker と docker-compose がインストールされていること
-- 各サービス（Sentry、GitHub、BrowserBase）のAPIトークンを取得済みであること
-
-### インストール手順
-
-1. リポジトリをクローンする：
 ```bash
-git clone https://github.com/yourusername/my-mcp-servers.git
-cd my-mcp-servers
+# Dockerイメージのビルド
+docker build -t mcp/github -f src/github/Dockerfile .
 ```
 
-2. 各サービスの環境変数ファイルを設定する：
+#### 起動手順（docker runの場合）
+
 ```bash
-# Sentry MCP
-cp services/sentry_mcp/.env.template services/sentry_mcp/.env
-# 編集して適切なAPIトークンと組織名を設定
-
-# GitHub MCP
-cp services/github_mcp/.env.template services/github_mcp/.env
-# 編集して適切なAPIトークンを設定
-
-# BrowserBase MCP
-cp services/browserbase_mcp/.env.template services/browserbase_mcp/.env
-# 編集して適切なAPIトークンを設定
+docker run -it --rm -e GITHUB_PERSONAL_ACCESS_TOKEN=$GITHUB_PERSONAL_ACCESS_TOKEN -p 5000:5000 mcp/github
 ```
 
-3. Docker イメージをビルドして起動する：
+#### 複数コンテナ起動（docker-compose）
+
 ```bash
-docker-compose build
+# .envファイルを作成してトークンを設定
+cp .env.template .env
+# 環境変数を編集
+nano .env
+# 起動
 docker-compose up -d
 ```
 
-4. サービスが正常に稼働していることを確認する：
-```bash
-docker-compose ps
+これにより、2つの異なるポート（5002と5003）でGitHub MCPサーバーが起動します。
+コンテナはttyモードで起動し、stdioインターフェースを通じて通信を待機します。
+
+### 3. Cursorでの使用方法
+
+MCPサーバーは標準入出力（stdio）を介して通信するように設計されています。Cursorと連携するには、`claude_desktop_config.json`に以下の設定を追加してください：
+
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "mcp/github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_your_token_here"
+      }
+    }
+  }
+}
 ```
 
-## APIエンドポイント
+この設定により、Cursorが必要なときにだけMCPサーバーを起動し、処理が完了すると自動的に終了します。
 
-### Sentry MCP
+## 使用方法
 
-- **ヘルスチェック**
-  - `GET http://localhost:8000/`
-  - レスポンス: `{"status": "ok", "service": "sentry-mcp"}`
+MCPサーバーは、ツール名とその入力パラメータを含むメッセージ形式でリクエストを受け付けます。
 
-- **エラーログの取得**
-  - `GET http://localhost:8000/mcp/sentry/errors?project=your_project&limit=10`
-  - パラメータ:
-    - `project` (オプション): プロジェクト名
-    - `limit` (オプション): 取得するエラーの最大数（デフォルト: 10）
+### リクエスト例（/respond エンドポイント）
 
-### GitHub MCP
+#### ファイルの作成または更新
 
-- **ヘルスチェック**
-  - `GET http://localhost:8001/`
-  - レスポンス: `{"status": "ok", "service": "github-mcp"}`
+```bash
+curl -X POST http://localhost:5002/respond \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [
+      {
+        "role": "user",
+        "content": {
+          "tool_name": "create_or_update_file",
+          "input": {
+            "owner": "your-username",
+            "repo": "your-repo",
+            "path": "example.txt",
+            "content": "Hello, world!",
+            "message": "Add example file",
+            "branch": "main"
+          }
+        }
+      }
+    ]
+  }'
+```
 
-- **プルリクエストの一覧取得**
-  - `GET http://localhost:8001/mcp/github/list_prs?owner=octocat&repo=hello-world&state=open`
-  - パラメータ:
-    - `owner` (必須): リポジトリのオーナー名
-    - `repo` (必須): リポジトリ名
-    - `state` (オプション): PRの状態（open/closed/all、デフォルト: open）
-    - `per_page` (オプション): 1ページあたりの結果数（デフォルト: 30）
+#### リポジトリ検索
 
-- **イシューの一覧取得**
-  - `GET http://localhost:8001/mcp/github/list_issues?owner=octocat&repo=hello-world&state=open`
-  - パラメータ:
-    - `owner` (必須): リポジトリのオーナー名
-    - `repo` (必須): リポジトリ名
-    - `state` (オプション): イシューの状態（open/closed/all、デフォルト: open）
-    - `per_page` (オプション): 1ページあたりの結果数（デフォルト: 30）
+```bash
+curl -X POST http://localhost:5002/respond \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [
+      {
+        "role": "user",
+        "content": {
+          "tool_name": "search_repositories",
+          "input": {
+            "query": "modelcontextprotocol"
+          }
+        }
+      }
+    ]
+  }'
+```
 
-### BrowserBase MCP
+#### ファイル内容取得
 
-- **ヘルスチェック**
-  - `GET http://localhost:8002/`
-  - レスポンス: `{"status": "ok", "service": "browserbase-mcp"}`
+```bash
+curl -X POST http://localhost:5002/respond \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [
+      {
+        "role": "user",
+        "content": {
+          "tool_name": "get_file_contents",
+          "input": {
+            "owner": "octocat",
+            "repo": "Hello-World",
+            "path": "README.md"
+          }
+        }
+      }
+    ]
+  }'
+```
 
-- **URLを開く**
-  - `GET http://localhost:8002/mcp/browserbase/open_url?url=https://example.com`
-  - パラメータ:
-    - `url` (必須): 開くURL
+## サポートしているツール
 
-- **ページタイトルの取得**
-  - `GET http://localhost:8002/mcp/browserbase/get_title`
-  - 注意: 先に `open_url` を呼び出してセッションを作成する必要があります
+GitHub MCPサーバーは以下の機能を提供します：
 
-- **要素のテキスト抽出**
-  - `GET http://localhost:8002/mcp/browserbase/get_text?selector=.headline`
-  - パラメータ:
-    - `selector` (必須): テキストを抽出するCSSセレクタ
-  - 注意: 先に `open_url` を呼び出してセッションを作成する必要があります
+1. `create_or_update_file` - リポジトリに単一ファイルを作成/更新
+2. `push_files` - 複数ファイルを一度のコミットでプッシュ
+3. `search_repositories` - GitHubリポジトリを検索
+4. `create_repository` - 新しいGitHubリポジトリを作成
+5. `get_file_contents` - ファイルまたはディレクトリの内容を取得
+6. `create_issue` - 新しいイシューを作成
+7. `create_pull_request` - 新しいプルリクエストを作成
+8. `fork_repository` - リポジトリをフォーク
+9. `create_branch` - 新しいブランチを作成
+10. `list_commits` - ブランチのコミット一覧を取得
+11. `list_issues` - リポジトリのイシュー一覧を取得
+12. `update_issue` - 既存のイシューを更新
+13. `add_issue_comment` - イシューにコメントを追加
+14. `search_code` - コードを検索
+15. `search_issues` - イシューとプルリクエストを検索
+16. `search_users` - GitHubユーザーを検索
+17. `get_issue` - 特定のイシューの詳細を取得
+18. `get_pull_request` - 特定のプルリクエストの詳細を取得
+19. `list_pull_requests` - プルリクエスト一覧を取得
+20. `create_pull_request_review` - プルリクエストのレビューを作成
+21. `merge_pull_request` - プルリクエストをマージ
+22. `get_pull_request_files` - プルリクエストの変更ファイル一覧を取得
+23. `get_pull_request_status` - プルリクエストのステータスを取得
+24. `update_pull_request_branch` - プルリクエストのブランチを更新
+25. `get_pull_request_comments` - プルリクエストのコメントを取得
+26. `get_pull_request_reviews` - プルリクエストのレビューを取得
 
-- **スクリーンショット撮影**
-  - `GET http://localhost:8002/mcp/browserbase/screenshot?selector=.main-content`
-  - パラメータ:
-    - `selector` (オプション): スクリーンショットを撮影する特定の要素のCSSセレクタ
-  - 注意: 先に `open_url` を呼び出してセッションを作成する必要があります
+詳細な各ツールの入力パラメータや使用方法については、[公式リポジトリのドキュメント](https://github.com/modelcontextprotocol/servers/tree/main/src/github)を参照してください。
 
-## トラブルシューティング
+## 注意事項
 
-- **サービスが起動しない場合**
-  - ログを確認: `docker-compose logs sentry-mcp`
-  - 環境変数が正しく設定されているか確認
-  - ポートの競合がないか確認
-
-- **API呼び出しがエラーを返す場合**
-  - APIトークンが有効か確認
-  - レート制限に達していないか確認
-  - ネットワーク接続を確認
-
-## メンテナンス
-
-- **コンテナの停止**
-  ```bash
-  docker-compose down
-  ```
-
-- **コンテナの再起動**
-  ```bash
-  docker-compose restart
-  ```
-
-- **ログの確認**
-  ```bash
-  docker-compose logs -f
-  ```
+- **アクセストークン**: GitHub Personal Access Tokenは必要なスコープ（repoまたはpublic_repo）を持つものを使用してください。APIレート制限にも注意してください。
+- **リクエスト形式**: MCPのプロトコルに準拠し、各メッセージはroleとcontent（中にtool_nameとinput）を含む必要があります。
+- **stdioモード**: このMCPサーバーはHTTPサーバーではなく、標準入出力（stdio）を介して通信するよう設計されています。Cursorなどのツールから呼び出して使用するのが最適です。
 
 ## ライセンス
 
-このプロジェクトはMITライセンスの下で公開されています。
+このプロジェクトは、元のMCP serverと同じMITライセンスのもとで提供されています。
