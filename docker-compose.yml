@@ -1,4 +1,4 @@
-version: '3.8'
+version: '3'
 
 services:
 #  sentry-mcp:
@@ -17,6 +17,47 @@ services:
 #      timeout: 10s
 #      retries: 3
 #      start_period: 10s
+
+  # github-mcp:
+  #   image: ghcr.io/cursor-ai/mcp-github:latest
+  #   environment:
+  #     - GITHUB_TOKEN=${GITHUB_TOKEN}
+  #     - MCP_HTTP_MODE=true
+  #   ports:
+  #     - "3100:3000"
+  #   restart: unless-stopped
+
+  time-mcp:
+    image: mcp/time
+    build:
+      context: .
+      dockerfile: src/time/Dockerfile
+    ports:
+      - "5004:5000"
+    env_file:
+      - .env
+    environment:
+      - PORT=5000
+    tty: true
+    stdin_open: true
+
+#  browserbase-mcp:
+#    build:
+#      context: ./services/browserbase_mcp
+#    ports:
+#      - "8002:8002"
+#    volumes:
+#      - ./services/browserbase_mcp:/app
+#    env_file:
+#      - ./services/browserbase_mcp/.env
+#    restart: unless-stopped
+#    healthcheck:
+#      test: ["CMD", "curl", "-f", "http://localhost:8002/"]
+#      interval: 30s
+#      timeout: 10s
+#      retries: 3
+#      start_period: 10s 
+
 
   github-mcp-1:
     image: mcp/github
@@ -46,19 +87,51 @@ services:
     tty: true
     stdin_open: true
 
-#  browserbase-mcp:
-#    build:
-#      context: ./services/browserbase_mcp
-#    ports:
-#      - "8002:8002"
-#    volumes:
-#      - ./services/browserbase_mcp:/app
-#    env_file:
-#      - ./services/browserbase_mcp/.env
-#    restart: unless-stopped
-#    healthcheck:
-#      test: ["CMD", "curl", "-f", "http://localhost:8002/"]
-#      interval: 30s
-#      timeout: 10s
-#      retries: 3
-#      start_period: 10s 
+  memory-mcp:
+    image: mcp/memory
+    build:
+      context: .
+      dockerfile: src/memory/Dockerfile
+    ports:
+      - "5005:5000"
+    env_file:
+      - .env
+    environment:
+      - PORT=5000
+    volumes:
+      - memory-data:/app/dist
+    tty: true
+    stdin_open: true
+
+  puppeteer-mcp:
+    image: mcp/puppeteer
+    build:
+      context: .
+      dockerfile: src/puppeteer/Dockerfile
+    ports:
+      - "5006:5000"
+    env_file:
+      - .env
+    environment:
+      - PORT=5000
+      - DOCKER_CONTAINER=true
+    tty: true
+    stdin_open: true
+    init: true
+
+  sequentialthinking-mcp:
+    image: mcp/sequentialthinking
+    build:
+      context: ./official-mcp-servers/servers
+      dockerfile: src/sequentialthinking/Dockerfile
+    ports:
+      - "5007:5000"
+    env_file:
+      - .env
+    environment:
+      - PORT=5000
+    tty: true
+    stdin_open: true
+
+volumes:
+  memory-data:
