@@ -149,5 +149,21 @@ services:
     tty: true
     stdin_open: true
 
+  slack-mcp:
+    image: mcp/slack
+    build:
+      context: ./official-mcp-servers/servers
+      dockerfile: src/slack/Dockerfile
+    ports:
+      - "5009:5000"
+    env_file:
+      - .env
+    environment:
+      - PORT=5000
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - SLACK_TEAM_ID=${SLACK_TEAM_ID}
+    tty: true
+    stdin_open: true
+
 volumes:
   memory-data:
